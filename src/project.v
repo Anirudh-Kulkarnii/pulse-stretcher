@@ -1,27 +1,189 @@
-/*
- * Copyright (c) 2024 Your Name
- * SPDX-License-Identifier: Apache-2.0
- */
-
 `default_nettype none
 
 module tt_um_example (
-    input  wire [7:0] ui_in,    // Dedicated inputs
-    output wire [7:0] uo_out,   // Dedicated outputs
-    input  wire [7:0] uio_in,   // IOs: Input path
-    output wire [7:0] uio_out,  // IOs: Output path
-    output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
-    input  wire       ena,      // always 1 when the design is powered, so you can ignore it
-    input  wire       clk,      // clock
-    input  wire       rst_n     // reset_n - low to reset
+    input  wire [7:0] ui_in,     // Dedicated inputs
+    output wire [7:0] uo_out,    // Dedicated outputs
+    input  wire [7:0] uio_in,    // Bidirectional input path
+    output wire [7:0] uio_out,   // Bidirectional output path
+    output wire [7:0] uio_oe,    // Bidirectional output enable
+    input  wire       ena,       // Enable
+    input  wire       clk,       // Clock
+    input  wire       rst_n      // Tiny Tapeout active-low reset
 );
 
-  // All output pins must be assigned. If not used, assign to 0.
-  assign uo_out  = ui_in + uio_in;  // Example: ou_out is the sum of ui_in and uio_in
-  assign uio_out = 0;
-  assign uio_oe  = 0;
+    // =========================================================
+    // INPUT MAPPING
+    // =========================================================
+    //
+    // ui_in[0]   = pulse_in
+    // ui_in[1]   = user reset
+    // ui_in[3:2] = mode
+    // ui_in[7:4] = duration
+    //
+    // uo_out[0]  = pulse_out
+    //
+    // =========================================================
 
-  // List all unused inputs to prevent warnings
-  wire _unused = &{ena, clk, rst_n, 1'b0};
+    wire       pulse_in;
+    wire       user_reset;
+    wire [1:0] mode;
+    wire [3:0] duration;
+
+    assign pulse_in   = ui_in[0];
+    assign user_reset = ui_in[1];
+    assign mode       = ui_in[3:2];
+    assign duration   = ui_in[7:4];
+
+    // =========================================================
+    // INTERNAL SIGNALS
+    // =========================================================
+
+    reg pulse_in_d;
+    reg pulse_out;
+    reg [11:0] counter;
+
+    wire rising_edge;
+
+    assign rising_edge = pulse_in & ~pulse_in_d;
+
+    // =========================================================
+    // MAIN PULSE STRETCHER
+    // =========================================================
+
+    always @(posedge clk) begin
+
+        // Tiny Tapeout reset OR user reset
+        if (!rst_n || user_reset) begin
+
+            pulse_in_d <= 1'b0;
+            pulse_out  <= 1'b0;
+            counter    <= 12'd0;
+
+        end else begin
+
+            // Store previous input state
+            pulse_in_d <= pulse_in;
+
+            // -------------------------------------------------
+            // Detect rising edge
+            // -------------------------------------------------
+
+            if (rising_edge) begin
+
+                // Mode 00 = IGNORE / NORMAL
+                //
+                // Start a new stretched pulse.
+                if (mode == 2'b00) begin
+
+                    pulse_out <= 1'b1;
+
+                    // Duration cannot be zero.
+                    if (duration == 4'd0)
+                        counter <= 12'd1;
+                    else
+                        counter <= {8'd0, duration};
+
+                end
+
+                // -------------------------------------------------
+                // Mode 01 = RETRIGGER
+                //
+                // A new pulse restarts the counter.
+                // -------------------------------------------------
+
+                else if (mode == 2'b01) begin
+
+                    pulse_out <= 1'b1;
+
+                    if (duration == 4'd0)
+                        counter <= 12'd1;
+                    else
+                        counter <= {8'd0, duration};
+
+                end
+
+                // -------------------------------------------------
+                // Mode 10 = EXTEND
+                //
+                // New pulse adds another duration to the
+                // current stretching period.
+                // -------------------------------------------------
+
+                else if (mode == 2'b10) begin
+
+                    pulse_out <= 1'b1;
+
+                    if (counter == 12'd0)
+                        counter <= {8'd0, duration};
+                    else
+                        counter <= counter + {8'd0, duration};
+
+                end
+
+                // -------------------------------------------------
+                // Mode 11 = NORMAL / RETRIGGER
+                // -------------------------------------------------
+
+                else begin
+
+                    pulse_out <= 1'b1;
+
+                    if (duration == 4'd0)
+                        counter <= 12'd1;
+                    else
+                        counter <= {8'd0, duration};
+
+                end
+
+            end
+
+            // =====================================================
+            // COUNTER OPERATION
+            // =====================================================
+
+            else if (pulse_out) begin
+
+                if (counter > 12'd1) begin
+
+                    counter <= counter - 12'd1;
+                    pulse_out <= 1'b1;
+
+                end else begin
+
+                    counter <= 12'd0;
+                    pulse_out <= 1'b0;
+
+                end
+
+            end
+
+            // =====================================================
+            // IDLE
+            // =====================================================
+
+            else begin
+
+                pulse_out <= 1'b0;
+                counter   <= 12'd0;
+
+            end
+
+        end
+
+    end
+
+    // =========================================================
+    // OUTPUT
+    // =========================================================
+
+    assign uo_out[0] = pulse_out;
+
+    // Unused outputs
+    assign uo_out[7:1] = 7'b0;
+
+    // No bidirectional pins used
+    assign uio_out = 8'b0;
+    assign uio_oe  = 8'b0;
 
 endmodule
+
