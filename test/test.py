@@ -16,7 +16,7 @@ async def reset_dut(dut):
 
     # Allow gate-level reset to settle
     await RisingEdge(dut.clk)
-    await Timer(1, unit="ns")
+    await Timer(100, unit="ns")
 
 
 def set_config(dut, duration, mode):
@@ -33,17 +33,17 @@ async def generate_pulse(dut):
 
     # Sample pulse
     await RisingEdge(dut.clk)
-    await Timer(1, unit="ns")
+    await Timer(100, unit="ns")
 
     # Deassert pulse
     dut.ui_in.value = int(dut.ui_in.value) & 0xFE
 
-    await Timer(1, unit="ns")
+    await Timer(100, unit="ns")
 
     # The 2-flop input synchronizer adds 2 clock cycles of latency
     for _ in range(2):
         await RisingEdge(dut.clk)
-    await Timer(1, unit="ns")
+    await Timer(100, unit="ns")
 
 
 async def wait_for_output_low(dut, max_cycles=3):
@@ -56,7 +56,7 @@ async def wait_for_output_low(dut, max_cycles=3):
             return True
 
         await RisingEdge(dut.clk)
-        await Timer(1, unit="ns")
+        await Timer(100, unit="ns")
 
     return int(dut.uo_out.value) == 0
 
@@ -95,7 +95,7 @@ async def test_project(dut):
     mode = 0
 
     set_config(dut, duration, mode)
-    await Timer(1, unit="ns")
+    await Timer(100, unit="ns")
 
     await generate_pulse(dut)
 
@@ -109,7 +109,7 @@ async def test_project(dut):
     for i in range(duration - 1):
 
         await RisingEdge(dut.clk)
-        await Timer(1, unit="ns")
+        await Timer(100, unit="ns")
 
         dut._log.info(
             f"MODE 00 cycle {i + 1}: {dut.uo_out.value}"
@@ -132,14 +132,14 @@ async def test_project(dut):
     mode = 1
 
     set_config(dut, duration, mode)
-    await Timer(1, unit="ns")
+    await Timer(100, unit="ns")
 
     await generate_pulse(dut)
 
     assert dut.uo_out.value == 1
 
     await RisingEdge(dut.clk)
-    await Timer(1, unit="ns")
+    await Timer(100, unit="ns")
 
     assert dut.uo_out.value == 1
 
@@ -149,7 +149,7 @@ async def test_project(dut):
 
     for i in range(3):
         await RisingEdge(dut.clk)
-        await Timer(1, unit="ns")
+        await Timer(100, unit="ns")
 
     dut._log.info("MODE 01 PASSED")
 
@@ -165,14 +165,14 @@ async def test_project(dut):
     mode = 2
 
     set_config(dut, duration, mode)
-    await Timer(1, unit="ns")
+    await Timer(100, unit="ns")
 
     await generate_pulse(dut)
 
     assert dut.uo_out.value == 1
 
     await RisingEdge(dut.clk)
-    await Timer(1, unit="ns")
+    await Timer(100, unit="ns")
 
     await generate_pulse(dut)
 
@@ -180,7 +180,7 @@ async def test_project(dut):
 
     for i in range(3):
         await RisingEdge(dut.clk)
-        await Timer(1, unit="ns")
+        await Timer(100, unit="ns")
 
     dut._log.info("MODE 10 PASSED")
 
@@ -196,14 +196,14 @@ async def test_project(dut):
     mode = 3
 
     set_config(dut, duration, mode)
-    await Timer(1, unit="ns")
+    await Timer(100, unit="ns")
 
     await generate_pulse(dut)
 
     assert dut.uo_out.value == 1
 
     await RisingEdge(dut.clk)
-    await Timer(1, unit="ns")
+    await Timer(100, unit="ns")
 
     await generate_pulse(dut)
 
@@ -211,7 +211,7 @@ async def test_project(dut):
 
     for i in range(3):
         await RisingEdge(dut.clk)
-        await Timer(1, unit="ns")
+        await Timer(100, unit="ns")
 
     dut._log.info("MODE 11 PASSED")
 
@@ -228,7 +228,7 @@ async def test_project(dut):
         mode = 0
 
         set_config(dut, duration, mode)
-        await Timer(1, unit="ns")
+        await Timer(100, unit="ns")
 
         await generate_pulse(dut)
 
@@ -241,7 +241,7 @@ async def test_project(dut):
         # Wait for normal duration
         for i in range(duration):
             await RisingEdge(dut.clk)
-            await Timer(1, unit="ns")
+            await Timer(100, unit="ns")
 
         # Allow gate-level output to settle
         assert await wait_for_output_low(dut, 3)
