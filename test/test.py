@@ -40,6 +40,11 @@ async def generate_pulse(dut):
 
     await Timer(1, unit="ns")
 
+    # The 2-flop input synchronizer adds 2 clock cycles of latency
+    for _ in range(2):
+        await RisingEdge(dut.clk)
+    await Timer(1, unit="ns")
+
 
 async def wait_for_output_low(dut, max_cycles=3):
     """
